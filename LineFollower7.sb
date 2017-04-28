@@ -1,0 +1,171 @@
+'********************************************************************************
+'@brief   Line Follower: 
+' prova con il PID , auto calibrazione e utilizzo di due sensori di luce
+'@author Chiara Fanello, Francesco Forcellato
+'@date  03.02.2017
+'********************************************************************************
+
+'--------------------------variabili d'ambiente-------------------------------------------------
+distanza = 1 ' porta sensore a ultrasuoni
+sensLuceSx = 2 ' porta sensore di luce sinistro
+sensLuceDx = 3 ' porta sensore di luce destro
+sensTocco=4   'porta sensore tocco
+
+nero = 4 '15 ' soglia del nero
+bianco = 40 '70 'soglia del bianco
+rigaGrigia=80'da settare
+
+velocita = 20      ' velocita' del robot
+num = 0 'numero di volte che si vede nero
+
+maxVel=55
+
+angoloNovanta=500
+'----------------------PID ---------------
+Kd =6
+Kp =12.5
+
+Sub pinza
+  If(Sensor.ReadRawValue(sensLuceSx,0)>=rigaGrigia Or Sensor.ReadRawValue(sensLuceDx,0)>=rigaGrigia)Then
+    Motor.Stop("BC","true")
+    Program.Delay(1000)
+    Motor.StartSync("BC",50,50)
+    While(Sensor.ReadRawValue(sensTocco,0)=0)
+    EndWhile
+    Motor.StartSync("BC", -50,-50)
+    Program.Delay(100)
+    Motor.StartSync("BC",-50,50)
+    Program.Delay(angoloNovanta)
+    conta=0
+    While(Sensor.ReadRawValue(sensTocco,0)=0 Or conta<40)
+      conta=conta+1
+    EndWhile
+    If(conta<40) Then
+      Motor.StartSync("BC", 50,50)
+      Program.Delay(angoloNovanta*2)
+      
+    Else
+      
+    EndIf
+    
+  EndIf
+  
+  
+EndSub
+
+
+
+'--------------------------Main del programma------------------------------------------------
+
+differenza =(bianco-nero)/2 'differenza tra bianco e nero   
+erroreDX = 0              'errore di andamento destro
+erroreSX = 0              'errore di andamento sinistro
+ultimoErroreDX = 0        'ultimo errore destro
+ultimoErroreSX= 0         'ultimo errore sinistro
+derivataDX = 0            'derivata destra
+derivataSX = 0            'derivata sinistra
+bloccato = "false"        'stato del robot, bloccato diventa "true" quando e' fermo sopra il nero con en4trambi i sensori per troppo tempo
+angoloVerde = 1000
+contMotore=-40
+num=0
+
+
+Sensor.SetMode(distanza,0) ' settaggio sensore ultrasuoni
+
+
+Motor.StartPower("A",-50)
+
+While ("true")
+  LCD.Text(1,50,50,2,Motor.GetCount("BC"))'scrive quanti giri fa il motore
+  'gestione verde 
+  Sensor.SetMode(sensLuceSx,2) 'settaggio sensore sinistro in modo tale che possa leggere i colori
+  Sensor.SetMode(sensLuceDx,2) 'settaggio sensore destro in modo tale che possa leggere i colori
+  If (Sensor.ReadRawValue(sensLuceDx,0) = 3)Then 'sensore destro legge il verde
+    Motor.StartSync("BC",100,-50) 'accende i motori in modo tale da fargli fare un certo angolo a seconda del tempo
+    Program.Delay(angoloVerde) 'attesa che il robot faccia l'angolo
+  EndIf
+  If(Sensor.ReadRawValue(sensLuceSx,0) = 3)Then 'sensore sinistro legge il verde
+    Motor.StartSync("BC",-50,100) 'accende i motori in modo tale da fargli fare un certo angolo a seconda del tempo
+    Program.Delay(angoloVerde) 'attesa che il robot faccia l'angolo
+  EndIf
+  'Clock.Millisecond
+  'gestione distanza
+  'If(Sensor.ReadRawValue(distanza,0)<200)Then
+  '  Motor.Stop("BC","True")
+  '  Motor.MoveSync("BC",50,-50,150,"True")
+  '  Motor.MoveSync("BC",40,50,180,"False")
+  '  Motor.MoveSync("BC",28,50,1700,"True")
+  '  Motor.MoveSync("BC",50,-50,230,"True")
+  'EndIf
+  
+  'solo per il testing: permette al robot di tornare indietro se trova un ostacolo, così non si "incastra"
+  ' If(Sensor.ReadRawValue(distanza,0)<50)Then
+  '   Motor.Stop("BC","True")
+  '   Motor.MoveSync("BC",-100,-100,1000,"True")
+  ' EndIf 
+  
+  Sensor.SetMode(sensLuceSx,0)
+  Sensor.SetMode(sensLuceDx,0)
+  LCD.Clear()
+  'LCD.Text(1,50,50,2,Sensor.ReadRawValue(sensLuceSx,0)+"  "+Sensor.ReadRawValue(sensLuceDx,0))
+  'LCD.Text(1,50,80,2,"n: "+Sensor.ReadRawValue(gyro,0))
+  'gestione velocita' motori a seconda del PID 
+  LightValueDX = Sensor.ReadPercent(sensLuceDx)             'leggo valore dal sensore
+  LightValueSX = Sensor.ReadPercent(sensLuceSx)
+  
+  'se si fermano i motori
+  contMot=Motor.GetCount("BC")
+  If(contMotore = contMot)Then
+    num=num+1
+    If(num >= 80) Then 'se vede nero per piu' di 100 volte allora sono fermo
+      Motor.StartSync("BC",100,100)
+      Program.Delay(10)
+      Motor.StartSync("BC",20,20)
+      'maxVel=100
+    EndIf
+  Else
+    ' Motor.StartPower("B", 100)
+    ' Motor.StartPower("C", 100)
+    contMotore=contMot
+    ' maxVel=50
+  EndIf
+  
+  LightValueDX = Sensor.ReadPercent(sensLuceDx)             'leggo valore dal sensore
+  LightValueSX = Sensor.ReadPercent(sensLuceSx)
+  If(LightValueDX>nero Or LightValueSX>nero) Then
+    num = 0
+  Else 'Vede nero su entrambi i sensori
+    num = num + 1 'incremento la variabile che tiene conto per quanto tempo vede nero
+    If(num >= 50) Then 'se vede nero per piu' di 100 volte allora sono fermo
+      Motor.StartPower("B", 100) 'muovo i motori per sbloccarmi
+      Motor.StartPower("C",100)
+      bloccato = "true"
+    EndIf
+  EndIf
+  
+  
+  
+  if(bloccato="false") Then
+    erroreDX = LightValueDX - differenza                  'calcolo l'errore sottraendo dalla differenza
+    erroreSX = LightValueSX - differenza   
+    derivataDX = erroreDX - ultimoErroreDX                 'calcola la derivata
+    derivataSX = erroreSX - ultimoErroreSX 
+    giroDX = Kp*erroreDX + Kd*derivataDX    'PID                               'divido per cento siccome introduziamo valori cento volte più grandi (Ki,Kp,Kd)
+    giroSX = Kp*erroreSX + Kd*derivataSX
+    ultimoErroreDX = erroreDX                            'salvo l'ultimo errore calcolato
+    ultimoErroreSX = erroreSX 
+    potenzaB = velocita + giroSX           'potenza motore B qua ho invertito
+    potenzaC = velocita + giroDX
+    If(potenzaB>maxVel) Then 
+      potenzaB=maxVel 
+    EndIf
+    If(potenzaC>maxVel) Then 
+      potenzaC=maxVel
+    EndIf
+    
+    Motor.StartPower("B", potenzaB)
+    Motor.StartPower("C",potenzaC)
+  EndIf
+  bloccato = "false"
+  pinza()
+endWhile
