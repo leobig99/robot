@@ -1,0 +1,21 @@
+precB=-100000
+precC=-100000
+attB=0
+attC=0
+num=0
+Motor.StartPower("BC",50)
+While("true")
+  attB=Motor.GetCount("B")
+  attC=Motor.GetCount("C")
+  If(precB=attB And precC=attC)Then
+    num=num+1
+    If(num>=80)then
+      Motor.StartPower("BC",100)
+    EndIf
+  Else
+    num=0
+    precB=attB
+    precC=attC
+  EndIf
+EndWhile
+    
