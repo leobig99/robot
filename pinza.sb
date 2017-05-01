@@ -1,0 +1,6 @@
+While("True")
+Motor.StartPower("A",-50)
+Program.Delay(5000)
+Motor.Stop("A", "false")
+Program.Delay(5000)
+EndWhile
