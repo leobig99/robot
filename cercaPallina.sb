@@ -1,0 +1,94 @@
+LCD.Clear()
+Motor.StartPower("BC",50)
+trovata="False"
+app=0
+While(trovata="False")
+  app=Sensor.ReadRawValue(4,0)
+  LCD.Text(1,50,50,2,app+"       ")
+  If(app>=3376)Then
+    trovata="True"
+    Motor.Stop("BC","false")
+  EndIf
+EndWhile
+
+Motor.StartPower("C",-70)
+Motor.StartPower("B",50)
+Program.Delay(3000)
+trovata2="False"
+app2=0
+Motor.StartPower("BC",50)
+While(trovata2="False")
+  app2=Sensor.ReadRawValue(4,0)
+  LCD.Text(1,50,50,2,app2+"       ")
+  If(app2>=3376)Then
+    trovata2="True"
+    Motor.Stop("BC","false")
+  EndIf
+EndWhile
+
+Sub cerca
+contatore=0
+variabile=1
+For i=0 To 40
+  distanza=Sensor.ReadRawValue(1,0)
+EndFor
+
+distanza=100000
+LCD.Clear()
+
+Motor.StartPower("BC",-50)
+Program.Delay(500)
+
+  While(distanza>900)
+    
+    
+    If(contatore=0)Then
+      Motor.StartPower("B",-60)
+      Motor.StartPower("C",60)
+      
+      variabile=1
+    EndIf
+    
+    If(contatore=500)Then
+      Motor.StartPower("B",60)
+      Motor.StartPower("C",-60)
+      
+      variabile=-1
+    EndIf
+    
+    contatore=contatore+variabile
+    
+    distanza=Sensor.ReadRawValue(1,0)
+    LCD.Text(1,50,50,2,distanza+"       ")
+    
+  EndWhile
+EndSub
+
+
+Motor.Stop("BC","false")
+
+LCD.Clear()
+'If(variabile=-1)Then
+'  Motor.StartPower("B",-60)
+'  Motor.StartPower("C",60)
+'  Program.Delay(500)
+'Else
+'   Motor.StartPower("C",-60)
+'  Motor.StartPower("B",60)
+'  Program.Delay(500)
+'EndIf
+
+presa="False"
+
+While(presa="False")
+  cerca()
+  Motor.Stop("BC","false")
+  Motor.StartPower("BC",-50)
+  Program.Delay(200)
+  If(Sensor.ReadRawValue(1,0)=40)Then
+    Motor.StartPower("A",-50)
+    Motor.Stop("BC","false")
+    presa="True"
+  EndIf
+EndWhile
+    
