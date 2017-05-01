@@ -79,16 +79,17 @@ LCD.Clear()
 'EndIf
 
 presa="False"
-
-While(presa="False")
-  cerca()
-  Motor.Stop("BC","false")
+cerca()
+Motor.Stop("BC","false")
   Motor.StartPower("BC",-50)
-  Program.Delay(200)
+While(presa="False")
   If(Sensor.ReadRawValue(1,0)=40)Then
     Motor.StartPower("A",-50)
     Motor.Stop("BC","false")
     presa="True"
   EndIf
 EndWhile
+LCD.Clear()
+LCD.Text(1,50,50,2,"yep")
+
     
