@@ -13,47 +13,163 @@ sensTocco=4   'porta sensore tocco
 
 nero = 4 '15 ' soglia del nero
 bianco = 40 '70 'soglia del bianco
-rigaGrigia=80'da settare
+rigaGrigia=75'da settare
 
-velocita = 20      ' velocita' del robot
+velocitaC = 40      ' velocita' del robot
+velocitaB = 20
 num = 0 'numero di volte che si vede nero
+conteggioNero = 0
 
-maxVel=55
+maxVelC=70
+maxVelB=50
 
 angoloNovanta=500
+
+'variabili stallo
+precB=-100000
+precC=-100000
+attB=0
+attC=0
+num=0
 '----------------------PID ---------------
-Kd =6
-Kp =12.5
+KdB =6
+KpB =12.5
+
+KdC =KdB/2
+KpC =KpB/2
+
+Sub cerca
+  contatore=0
+  variabile=1
+  For i=0 To 40
+    distanza=Sensor.ReadRawValue(1,0)
+  EndFor
+  distanza=100000
+  Motor.StartPower("BC",-50)
+  Program.Delay(500)
+  While(distanza>600)
+    If(contatore=0)Then
+      Motor.StartPower("B",-80)
+      Motor.StartPower("C",80)
+      variabile=1
+    EndIf
+    If(contatore=1000)Then
+      Motor.StartPower("B",80)
+      Motor.StartPower("C",-80)
+      variabile=-1
+    EndIf
+    contatore=contatore+variabile
+    distanza=Sensor.ReadRawValue(1,0)
+  EndWhile
+EndSub
+
+Sub ostacolo
+  If(Sensor.ReadRawValue(sensTocco,0)>=3376)Then
+    'giro di 90
+    Motor.Stop("BC","True")
+    Motor.StartPower("C",-100)
+    Motor.StartPower("B",60)
+    Program.Delay(2000)
+    
+    'vado avanti
+    Motor.Stop("BC","False")
+    Motor.StartPower("BC",60)
+    Program.Delay(2000)
+    
+    'giro facendo un angolo
+    Motor.Stop("BC","False")
+    Motor.StartPower("B",25)
+    Motor.StartPower("C",100)
+    Program.Delay(3500)
+    
+    'vado avanti
+    Motor.StartPower("BC",60)
+    Program.Delay(3500)
+    
+    'mi rigiro
+    Motor.Stop("BC","False")
+    Motor.StartPower("B",25)
+    Motor.StartPower("C",100)
+    Program.Delay(3500)
+    
+    'vado avanti finchè non vedo la linea
+    Motor.StartPower("BC",60)
+    
+    'Motor.MoveSync("BC",50,-50,150,"True")
+    'Motor.MoveSync("BC",40,50,180,"False")
+    'Motor.MoveSync("BC",28,50,1700,"True")
+    'Motor.MoveSync("BC",50,-50,230,"True")
+  EndIf
+EndSub
 
 Sub pinza
   If(Sensor.ReadRawValue(sensLuceSx,0)>=rigaGrigia Or Sensor.ReadRawValue(sensLuceDx,0)>=rigaGrigia)Then
-    Motor.Stop("BC","true")
-    Program.Delay(1000)
-    Motor.StartSync("BC",50,50)
-    While(Sensor.ReadRawValue(sensTocco,0)=0)
+    Motor.Stop("A","False")
+    Program.Delay(2000)
+    Motor.StartPower("B",80)
+    Motor.StartPower("C",100)
+    trovata="False"
+    app=0
+    While(trovata="False")
+      app=Sensor.ReadRawValue(sensTocco,0)
+      If(app>=3376)Then
+        trovata="True"
+        Motor.Stop("BC","false")
+      EndIf
     EndWhile
-    Motor.StartSync("BC", -50,-50)
-    Program.Delay(100)
-    Motor.StartSync("BC",-50,50)
-    Program.Delay(angoloNovanta)
-    conta=0
-    While(Sensor.ReadRawValue(sensTocco,0)=0 Or conta<40)
-      conta=conta+1
-    EndWhile
-    If(conta<40) Then
-      Motor.StartSync("BC", 50,50)
-      Program.Delay(angoloNovanta*2)
-      
-    Else
-      
-    EndIf
     
+    
+    Motor.StartPower("C",-100)
+    Motor.StartPower("B",60)
+    Program.Delay(3000)
+    trovata2="False"
+    app2=0
+    Motor.StartPower("BC",50)
+    While(trovata2="False")
+      app2=Sensor.ReadRawValue(4,0)
+      If(app2>=3376)Then
+        trovata2="True"
+        Motor.Stop("BC","false")
+      EndIf
+    EndWhile
+    
+    Motor.StartPower("A", 50)
+    Program.Delay(100)
+    Motor.Stop("A","False")
+    
+    Motor.Stop("BC","False")
+    
+    presa="False"
+    cerca()
+    Motor.Stop("BC","false")
+    Motor.StartPower("C",-50)
+    Motor.StartPower("B",-40)
+    While(presa="False")
+      sensore=Sensor.ReadRawValue(1,0)
+      If(sensore<48)Then     '40
+        Motor.StartPower("A",-50)
+        Program.Delay(100)
+        Motor.Stop("BC","false")
+        presa="True"
+      EndIf
+    EndWhile
+    Motor.StartPower("B",-80)
+    Motor.StartPower("C",-100)
+    Program.Delay(1000)
+    Motor.Stop("BC","False")
+    Motor.StartPower("A",-50)
+    Program.Delay(100)
+    Motor.Stop("A","False")
+    Program.Delay(100000)
   EndIf
-  
-  
 EndSub
 
-
+Sub vedoNero
+  If(conteggioNero>10)Then
+    conteggioNero = 0
+    Motor.StartPower("BC",100)
+  EndIf
+EndSub
 
 '--------------------------Main del programma------------------------------------------------
 
@@ -74,6 +190,8 @@ Sensor.SetMode(distanza,0) ' settaggio sensore ultrasuoni
 
 
 Motor.StartPower("A",-50)
+Program.Delay(500)
+Motor.StartPower("A",-10)
 
 While ("true")
   LCD.Text(1,50,50,2,Motor.GetCount("BC"))'scrive quanti giri fa il motore
@@ -98,6 +216,8 @@ While ("true")
   '  Motor.MoveSync("BC",50,-50,230,"True")
   'EndIf
   
+  ostacolo()
+  
   'solo per il testing: permette al robot di tornare indietro se trova un ostacolo, così non si "incastra"
   ' If(Sensor.ReadRawValue(distanza,0)<50)Then
   '   Motor.Stop("BC","True")
@@ -113,22 +233,22 @@ While ("true")
   LightValueDX = Sensor.ReadPercent(sensLuceDx)             'leggo valore dal sensore
   LightValueSX = Sensor.ReadPercent(sensLuceSx)
   
-  'se si fermano i motori
-  contMot=Motor.GetCount("BC")
-  If(contMotore = contMot)Then
-    num=num+1
-    If(num >= 80) Then 'se vede nero per piu' di 100 volte allora sono fermo
-      Motor.StartSync("BC",100,100)
-      Program.Delay(10)
-      Motor.StartSync("BC",20,20)
-      'maxVel=100
+  attB=Motor.GetCount("B")
+  attC=Motor.GetCount("C")
+  If(precB=attB And precC=attC)Then
+    num = num + 1
+    If(num>=80)then
+      Motor.StartPower("B",80)
+      Motor.StartPower("C",100)
+      Program.Delay(60000)
+      'bloccato="true"
     EndIf
   Else
-    ' Motor.StartPower("B", 100)
-    ' Motor.StartPower("C", 100)
-    contMotore=contMot
-    ' maxVel=50
+    num = 0
+    precB = attB
+    precC = attC
   EndIf
+  
   
   LightValueDX = Sensor.ReadPercent(sensLuceDx)             'leggo valore dal sensore
   LightValueSX = Sensor.ReadPercent(sensLuceSx)
@@ -136,6 +256,7 @@ While ("true")
     num = 0
   Else 'Vede nero su entrambi i sensori
     num = num + 1 'incremento la variabile che tiene conto per quanto tempo vede nero
+    conteggioNero = conteggioNero + 1
     If(num >= 50) Then 'se vede nero per piu' di 100 volte allora sono fermo
       Motor.StartPower("B", 100) 'muovo i motori per sbloccarmi
       Motor.StartPower("C",100)
@@ -143,24 +264,24 @@ While ("true")
     EndIf
   EndIf
   
-  
+  'vedoNero()
   
   if(bloccato="false") Then
     erroreDX = LightValueDX - differenza                  'calcolo l'errore sottraendo dalla differenza
     erroreSX = LightValueSX - differenza   
     derivataDX = erroreDX - ultimoErroreDX                 'calcola la derivata
     derivataSX = erroreSX - ultimoErroreSX 
-    giroDX = Kp*erroreDX + Kd*derivataDX    'PID                               'divido per cento siccome introduziamo valori cento volte più grandi (Ki,Kp,Kd)
-    giroSX = Kp*erroreSX + Kd*derivataSX
+    giroDX = KpB*erroreDX + KdB*derivataDX    'PID                               'divido per cento siccome introduziamo valori cento volte più grandi (Ki,Kp,Kd)
+    giroSX = KpC*erroreSX + KdC*derivataSX
     ultimoErroreDX = erroreDX                            'salvo l'ultimo errore calcolato
     ultimoErroreSX = erroreSX 
-    potenzaB = velocita + giroSX           'potenza motore B qua ho invertito
-    potenzaC = velocita + giroDX
-    If(potenzaB>maxVel) Then 
-      potenzaB=maxVel 
+    potenzaB = velocitaB + giroSX           'potenza motore B qua ho invertito
+    potenzaC = velocitaC + giroDX
+    If(potenzaB>maxVelB) Then 
+      potenzaB=maxVelB 
     EndIf
-    If(potenzaC>maxVel) Then 
-      potenzaC=maxVel
+    If(potenzaC>maxVelC) Then 
+      potenzaC=maxVelC
     EndIf
     
     Motor.StartPower("B", potenzaB)
